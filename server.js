@@ -13,10 +13,13 @@ const authMiddleware = require("./src/middleware/auth.middleware");
 
 const app = express();
 
+// Trust Render's proxy — fixes express-rate-limit error
+app.set("trust proxy", 1);
+
 // Security Middlewares
 app.use(helmet());
 
-// CORS — single config, before all routes
+// CORS
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -27,10 +30,18 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// Handle preflight requests for all routes
-app.options("*", cors());
+// Handle preflight — Express 5 compatible (no wildcard *)
+app.options(/(.*)/, cors());
 
 app.use(express.json());
+
+// Health & Test Routes — before rate limiter and all other routes
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+app.get("/api/test", (req, res) => {
+  res.json({ message: "Server is working securely!" });
+});
 
 // API Rate Limiting
 const apiLimiter = rateLimit({
@@ -46,14 +57,6 @@ app.use("/api", transactionRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/recurring", recurringRoutes);
 app.use("/api/categories", categoriesRoutes);
-
-// Health & Test Routes
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Server is working securely!" });
-});
 
 // Profile (Protected)
 app.get("/api/profile", authMiddleware, (req, res) => {
