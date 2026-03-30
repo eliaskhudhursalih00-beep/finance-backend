@@ -42,7 +42,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finance_test
           JWT_SECRET: testsecret
           JWT_REFRESH_SECRET: testrefreshsecret
-        run: npm run migrate
+        run: npx ts-node migrate.js
 
       - name: Run tests
         env:
