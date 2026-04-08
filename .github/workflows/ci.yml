@@ -1,0 +1,71 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build-and-test:
+
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: finance_test
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: './finance-backend/package-lock.json'
+        
+    - name: Install Backend Dependencies
+      run: npm ci
+      working-directory: ./finance-backend
+      
+    - name: Wait for database to initialize
+      run: sleep 5
+      
+    - name: Run Database Migrations
+      run: npm run migrate
+      working-directory: ./finance-backend
+      env:
+        DB_USER: root
+        DB_PASSWORD: password
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: finance_test
+        
+    - name: Run Backend Tests
+      run: npm test
+      working-directory: ./finance-backend
+      env:
+        DB_USER: root
+        DB_PASSWORD: password
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: finance_test
+        JWT_SECRET: "test-auth-secret-123456"
+        JWT_REFRESH_SECRET: "test-refresh-secret-123456"
